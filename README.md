@@ -1,18 +1,20 @@
-# Goldilocks Sim
+# Exoplanet Orbit Sim
 
-3D orbit viz with habitable-zone (Goldilocks) display. Pick a planet and see its orbit and whether it sits inside the star’s habitable zone. Static site (TypeScript → `dist/`); runs in the browser, no backend.
+Created as a part of BPRO 28800 final project.
 
-**Ways to pick a planet:** (1) **Examples** — preloaded list (solar system + a few exoplanets) in `preloaded-planets.json`; instant, no API. (2) **Suggestions** — preset categories that query the NASA Exoplanet Archive. (3) **Search** — custom filters against the archive. All requests go through a CORS proxy so the app works when deployed (e.g. GitHub Pages). Successful API results are cached in memory.
+3D orbit viz with habitable-zone (Goldilocks) display. Pick a planet and see its orbit and whether it sits inside the star’s habitable zone. Static site (TypeScript → `dist/`); runs in the browser, no backend. See **[docs/setup.md](docs/setup.md)** for local running instructions.
 
-**Build, run locally, deploy:** see **[docs/setup.md](docs/setup.md)**.
+**Ways to pick a planet:** 
+
+- **Examples** — preloaded list (solar system + a few exoplanets) in `preloaded-planets.json`; instant, no API. 
+- **Suggestions** — preset categories that query the NASA Exoplanet Archive. (
+- **Search** — custom filters against the archive. All requests go through a CORS proxy so the app works when deployed (e.g. GitHub Pages). Successful API results are cached in memory.
 
 ---
 
 ## Demo
 
-<!-- Add a short demo video or GIF here, e.g.:
-[![Demo](thumbnail.png)](https://your-video-url)
--->
+https://github.com/user-attachments/assets/6309785d-c994-4e98-a910-86cbcda66e6c
 
 ---
 
@@ -31,7 +33,7 @@ We query the **NASA Exoplanet Archive** TAP API (`ps` table, default composite r
 | **st_lum** | log₁₀(L/L☉) | Convert to L/L☉; habitable zone inner/outer (AU). |
 | **st_mass** | Star mass (M☉) | Derive semi-major axis from period when needed; info panel. |
 | **pl_rade** | Planet radius (Earth radii) | Planet size in scene; info panel. |
-| **pl_masse** | Planet mass (Earth masses) | Info panel only. |
+| **pl_masse** | Planet mass (Earth masses) | Info panel only. | 
 | **pl_orbsmax** | Orbital semi-major axis (AU) | Orbit size, HZ in/out check, scale bar. Validated against period (Kepler III). |
 | **pl_orbper** | Orbital period (days) | Orbit animation speed; period display; derive semi-major axis when missing or inconsistent. |
 | **pl_orbeccen** | Orbital eccentricity (0–1) | Elliptical orbit shape; “unknown” if null. |
