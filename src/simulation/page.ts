@@ -143,10 +143,7 @@ import { runScene } from "./scene.js";
     const input = getInput();
     const out = await window.GoldilocksQuery.fetchPlanets(input);
     if (!out.ok) {
-      let msg = (out as { error?: string }).error || "Could not load data.";
-      if (msg === "Failed to fetch" || msg.includes("fetch")) {
-        msg += " Open from a local server (e.g. npx serve .), not as a file.";
-      }
+      const msg = (out as { error?: string }).error || "Could not load data.";
       statusEl.textContent = "Error: " + msg;
       return;
     }
@@ -184,11 +181,13 @@ import { runScene } from "./scene.js";
   function updateScaleBar(maxAu: number): void {
     const NICE = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10];
     const maxVal = NICE.find((n) => n >= maxAu * 1.05) ?? NICE[NICE.length - 1];
-    const tickCount = 5;
-    const ticks: number[] = [];
-    for (let i = 0; i <= tickCount; i++) ticks.push((maxVal * i) / tickCount);
+    const step = maxVal / 5;
+    const niceStep = NICE.find((n) => n >= step) ?? NICE[NICE.length - 1];
+    const ticks: number[] = [0];
+    for (let v = niceStep; v < maxVal - 1e-9; v += niceStep) ticks.push(v);
+    if (ticks[ticks.length - 1] !== maxVal) ticks.push(maxVal);
     const formatAu = (v: number) =>
-      v >= 1 ? v.toFixed(0) : v >= 0.1 ? v.toFixed(1) : v.toFixed(2);
+      v >= 1 ? (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) : v >= 0.1 ? v.toFixed(1) : v.toFixed(2);
     const w = 200;
     const h = 44;
     const lineY = 10;

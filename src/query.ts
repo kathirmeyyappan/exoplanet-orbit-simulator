@@ -44,8 +44,22 @@ function buildQuery(input: QueryInput): string {
 
 const CORS_PROXY = "https://api.allorigins.win/raw?url=";
 
+/** In-memory cache for successful results only; keyed by request. */
+const resultCache = new Map<string, { ok: true; data: TapRow[] }>();
+
+function networkErrorMsg(raw: string): string {
+  if (raw === "Failed to fetch" || raw === "Network error" || /fetch|CORS|TypeError/i.test(raw)) {
+    return "Could not reach the NASA Exoplanet Archive. This often happens when the page is opened as a file (file://) due to browser security (CORS). Run the app from a local server instead: in the project folder run \"npx serve .\", then open http://localhost:3000 in your browser.";
+  }
+  return raw;
+}
+
 async function fetchPlanets(input: QueryInput): Promise<FetchResult> {
   const query = buildQuery(input);
+  const cacheKey = "q:" + query;
+  const cached = resultCache.get(cacheKey);
+  if (cached) return cached;
+
   const url = `${TAP_BASE}?query=${encodeURIComponent(query)}&format=json`;
   const useProxy = typeof location !== "undefined" && /^https?:\/\/localhost(\b|:)/i.test(location.origin);
 
@@ -58,7 +72,9 @@ async function fetchPlanets(input: QueryInput): Promise<FetchResult> {
     }
     return res.json().then((raw: unknown) => {
       const data = Array.isArray(raw) ? raw : (raw as { data?: TapRow[]; results?: TapRow[] }).data ?? (raw as { results?: TapRow[] }).results ?? [];
-      return { ok: true, data };
+      const result: FetchResult = { ok: true, data };
+      resultCache.set(cacheKey, result);
+      return result;
     });
   }
 
@@ -83,15 +99,21 @@ async function fetchPlanets(input: QueryInput): Promise<FetchResult> {
         const res2 = await fetch(CORS_PROXY + encodeURIComponent(url));
         return await parseResponse(res2);
       } catch (e2: unknown) {
-        return { ok: false, error: (e2 as Error).message || "Network error" };
+        const raw = (e2 as Error).message || "Network error";
+        return { ok: false, error: networkErrorMsg(raw) };
       }
     }
-    return { ok: false, error: (err as Error).message || "Network error" };
+    const raw = (err as Error).message || "Network error";
+    return { ok: false, error: networkErrorMsg(raw) };
   }
 }
 
 function fetchPlanetsByNames(names: string[]): Promise<FetchResult> {
   if (names.length === 0) return Promise.resolve({ ok: true, data: [] });
+  const cacheKey = "n:" + [...names].sort().join(",");
+  const cached = resultCache.get(cacheKey);
+  if (cached) return Promise.resolve(cached);
+
   const escaped = names.map((n) => "'" + String(n).replace(/'/g, "''") + "'");
   const inList = escaped.join(", ");
   const query = `SELECT ${SELECT_COLS} FROM ${FROM} WHERE default_flag = 1 AND pl_name IN (${inList})`;
@@ -108,14 +130,16 @@ function fetchPlanetsByNames(names: string[]): Promise<FetchResult> {
     }
     return res.json().then((raw: unknown) => {
       const data = Array.isArray(raw) ? raw : (raw as { data?: TapRow[] }).data ?? [];
-      return { ok: true, data };
+      const result: FetchResult = { ok: true, data };
+      resultCache.set(cacheKey, result);
+      return result;
     });
   }
 
-  return fetch(target).then(parseResponse).catch((err: unknown) => ({
-    ok: false as const,
-    error: (err as Error).message || "Network error"
-  }));
+  return fetch(target).then(parseResponse).catch((err: unknown) => {
+    const raw = (err as Error).message || "Network error";
+    return { ok: false as const, error: networkErrorMsg(raw) };
+  });
 }
 
 window.GoldilocksQuery = { buildQuery, buildWhere, fetchPlanets, fetchPlanetsByNames };

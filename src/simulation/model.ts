@@ -60,20 +60,35 @@ const SUN_RADIUS_AU = 0.005;
 const MIN_STAR_RADIUS = 0.012;
 const MIN_PLANET_RADIUS = 0.008;
 
+/** Kepler III: a_AU^3 = T_yr^2 * M_sun. Returns a in AU. */
+function semiMajorAxisFromPeriod(periodDays: number, starMassMsun: number): number {
+  const Tyr = periodDays / 365.25;
+  return Math.pow(Tyr * Tyr * Math.max(0.1, starMassMsun), 1 / 3);
+}
+
 export function createSimulationFromRow(row: Record<string, unknown>): SimulationState {
   const plName = (get(row, "pl_name") as string) || "Planet";
   const hostName = (get(row, "hostname") as string) || "Star";
   const stRad = num(row, "st_rad", 1);
   const stLum = num(row, "st_lum", 0);
-  const plOrbsmax = num(row, "pl_orbsmax", 1);
-  const plOrbeccenRaw = get(row, "pl_orbeccen");
-  const eccentricityKnown = plOrbeccenRaw != null && Number.isFinite(Number(plOrbeccenRaw));
-  const plOrbeccen = num(row, "pl_orbeccen", 0);
-  const plRade = num(row, "pl_rade", 1);
   const plOrbper = num(row, "pl_orbper", 365);
   const stTeff = get(row, "st_teff");
   const stMass = get(row, "st_mass");
   const plMasse = get(row, "pl_masse");
+  const starMassMsunNum = stMass != null && Number.isFinite(Number(stMass)) ? Number(stMass) : 1;
+  const derivedAu = semiMajorAxisFromPeriod(plOrbper, starMassMsunNum);
+  const plOrbsmaxRaw = get(row, "pl_orbsmax");
+  const catalogAu =
+    plOrbsmaxRaw != null && Number.isFinite(Number(plOrbsmaxRaw)) ? Number(plOrbsmaxRaw) : null;
+  // Use catalog value only if consistent with period (Kepler III); else use derived (e.g. archive sometimes has wrong/placeholder 1.0)
+  const plOrbsmax =
+    catalogAu != null && derivedAu > 0 && catalogAu >= derivedAu * 0.5 && catalogAu <= derivedAu * 2
+      ? catalogAu
+      : derivedAu;
+  const plOrbeccenRaw = get(row, "pl_orbeccen");
+  const eccentricityKnown = plOrbeccenRaw != null && Number.isFinite(Number(plOrbeccenRaw));
+  const plOrbeccen = num(row, "pl_orbeccen", 0);
+  const plRade = num(row, "pl_rade", 1);
 
   const starLuminosity: number | null =
     stLum != null && Number.isFinite(stLum) ? Math.pow(10, stLum) : null;
