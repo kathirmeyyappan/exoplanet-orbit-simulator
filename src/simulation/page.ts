@@ -208,6 +208,7 @@ import { runScene } from "./scene.js";
   if (!stored) {
     infoEl.innerHTML = 'No planet selected. <button type="button" id="open-search-btn">Search planets</button>';
     document.getElementById("open-search-btn")?.addEventListener("click", openModal);
+    openModal();
     return;
   }
 
