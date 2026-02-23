@@ -2,26 +2,105 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Goldilocks Sim — Query</title>
+  <title>Goldilocks Sim</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #canvas { display: block; width: 100vw; height: 100vh; }
+    #info { position: absolute; left: 10px; top: 10px; color: #fff; background: rgba(0,0,0,0.6); padding: 10px 12px; font-family: sans-serif; font-size: 15px; line-height: 1.35; z-index: 2; overflow: visible; max-width: min(360px, 90vw); }
+    #info a { color: #8af; }
+    #info .info-lines .info-line { display: block; margin-bottom: 4px; }
+    #info .info-lines .info-line:last-child { margin-bottom: 0; }
+    #info .hz.in-hz { color: #6ada6a; }
+    #info .hz.out-too-close { color: #e86c6c; }
+    #info .hz.out-too-far { color: #6a9aee; }
+    #info button { display: block; margin: 8px 0 0 0; cursor: pointer; background: #4488ff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; font-size: 14px; }
+    #info button:hover { background: #5599ff; }
+    #scale { position: absolute; right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); color: #fff; background: rgba(0,0,0,0.6); padding: 10px 14px; font-family: sans-serif; font-size: 14px; z-index: 2; overflow: visible; }
+    #scale-bar { display: block; vertical-align: bottom; }
+    #scale-bar line { stroke: #fff; stroke-width: 1.5; }
+    #scale-bar text { fill: #fff; font-size: 12px; font-weight: bold; }
+    #timer { position: absolute; left: 10px; bottom: 10px; color: #fff; background: rgba(0,0,0,0.6); padding: 10px 14px; font-family: sans-serif; font-size: 20px; z-index: 2; }
+    #disclaimer-btn { position: absolute; right: 10px; top: 10px; color: #fff; background: rgba(0,0,0,0.6); border: 1px solid #888; padding: 8px 12px; font-family: sans-serif; font-size: 14px; cursor: pointer; z-index: 2; }
+    #disclaimer-btn:hover { background: rgba(0,0,0,0.8); }
+    #disclaimer { display: none; position: absolute; right: 10px; top: 50px; max-width: 360px; color: #fff; background: rgba(0,0,0,0.85); padding: 14px; font-family: sans-serif; font-size: 14px; line-height: 1.5; border: 1px solid #666; z-index: 2; }
+    #disclaimer.visible { display: block; }
+    #disclaimer ul { margin: 8px 0 0; padding-left: 18px; }
+
+    /* Search modal */
+    #search-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+    #search-overlay.visible { display: flex; }
+    #search-modal { background: #1a1a1a; color: #eee; padding: 24px; border-radius: 8px; max-width: 520px; width: 90%; max-height: 85vh; overflow-y: auto; font-family: sans-serif; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+    #search-modal h2 { margin: 0 0 16px; font-size: 20px; }
+    #search-modal fieldset { border: 1px solid #555; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+    #search-modal label { display: block; margin-bottom: 6px; font-size: 14px; }
+    #search-modal input[type="number"] { width: 80px; margin: 0 4px; padding: 4px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; }
+    #search-modal button[type="submit"] { background: #4488ff; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    #search-modal button[type="submit"]:hover { background: #5599ff; }
+    #search-status { margin: 12px 0; font-size: 14px; min-height: 1.2em; }
+    #search-results { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+    #search-results li { padding: 10px 12px; border-bottom: 1px solid #333; cursor: pointer; font-size: 14px; }
+    #search-results li:hover { background: #333; }
+    #search-modal .close { float: right; background: transparent; color: #888; border: 1px solid #555; padding: 4px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; margin-top: -4px; }
+    #search-modal .close:hover { color: #fff; background: #444; }
+  </style>
 </head>
 <body>
-  <h1>Goldilocks Sim</h1>
-  <form id="query-form">
-    <fieldset>
-      <legend>Filters (inclusive ranges)</legend>
-      <label>Star radius (R☉) min <input type="number" name="st_rad_min" step="any" value="0.1"> max <input type="number" name="st_rad_max" step="any" value="10"></label><br>
-      <label>Star temp (K) min <input type="number" name="st_teff_min" step="any" value=""> max <input type="number" name="st_teff_max" step="any" value=""></label><br>
-      <label>Orbital dist (AU) min <input type="number" name="pl_orbsmax_min" step="any" value="0.01"> max <input type="number" name="pl_orbsmax_max" step="any" value="100"></label><br>
-      <label>Planet radius (R⊕) min <input type="number" name="pl_rade_min" step="any" value="0.1"> max <input type="number" name="pl_rade_max" step="any" value="30"></label><br>
-      <label>Planet mass (M⊕) min <input type="number" name="pl_masse_min" step="any" value=""> max <input type="number" name="pl_masse_max" step="any" value=""></label><br>
-      <label>Orbital period (days) min <input type="number" name="pl_orbper_min" step="any" value=""> max <input type="number" name="pl_orbper_max" step="any" value=""></label><br>
-    </fieldset>
-    <button type="submit">Search</button>
-  </form>
-  <p id="status"></p>
-  <ul id="results"></ul>
+  <div id="info"></div>
+  <button type="button" id="disclaimer-btn">Assumptions / disclaimer</button>
+  <div id="disclaimer">
+    <strong>Assumptions in this simulation</strong>
+    <ul>
+      <li><strong>Orbit:</strong> Eccentricity from the database when available; otherwise circular. Single planet only; no mutual perturbations.</li>
+      <li><strong>Habitable zone:</strong> From stellar luminosity only (inner ≈ 0.75√L, outer ≈ 1.77√L AU). Simplified model; not climate or atmosphere.</li>
+      <li><strong>Star/planet size:</strong> Exaggerated for visibility. Real star/planet radii are much smaller than orbit scale.</li>
+      <li><strong>Time:</strong> Orbital period from database (days). "Years" = days / 365.25. Animation speed is arbitrary.</li>
+      <li>Data: NASA Exoplanet Archive (TAP). Any errors come directly from here.</li>
+    </ul>
+  </div>
+  <div id="timer">Time: — days (— years)</div>
+  <div id="scale" aria-label="Distance scale in AU">
+    <svg id="scale-bar" width="200" height="44" viewBox="0 0 200 44" aria-hidden="true">
+      <!-- horizontal bar -->
+      <line x1="0" y1="10" x2="200" y2="10" stroke="#fff" stroke-width="2"/>
+      <!-- major ticks (0, 0.5, 1, 1.5, 2 AU) -->
+      <line x1="0" y1="10" x2="0" y2="18"/><line x1="50" y1="10" x2="50" y2="18"/>
+      <line x1="100" y1="10" x2="100" y2="18"/><line x1="150" y1="10" x2="150" y2="18"/>
+      <line x1="200" y1="10" x2="200" y2="18"/>
+      <!-- labels -->
+      <text x="0" y="32" text-anchor="start">0</text>
+      <text x="50" y="32" text-anchor="middle">0.5</text>
+      <text x="100" y="32" text-anchor="middle">1</text>
+      <text x="150" y="32" text-anchor="middle">1.5</text>
+      <text x="195" y="32" text-anchor="end">2</text>
+      <text x="200" y="8" text-anchor="end" font-size="11">AU</text>
+    </svg>
+  </div>
+  <canvas id="canvas"></canvas>
+
+  <!-- Search modal (popup) -->
+  <div id="search-overlay">
+    <div id="search-modal">
+      <button type="button" class="close" id="search-close" aria-label="Close">×</button>
+      <h2>Search planets</h2>
+      <form id="query-form">
+        <fieldset>
+          <legend>Filters (inclusive ranges)</legend>
+          <label>Star radius (R☉) min <input type="number" name="st_rad_min" step="any" value="0.1"> max <input type="number" name="st_rad_max" step="any" value="10"></label>
+          <label>Star temp (K) min <input type="number" name="st_teff_min" step="any" value=""> max <input type="number" name="st_teff_max" step="any" value=""></label>
+          <label>Orbital dist (AU) min <input type="number" name="pl_orbsmax_min" step="any" value="0.01"> max <input type="number" name="pl_orbsmax_max" step="any" value="100"></label>
+          <label>Planet radius (R⊕) min <input type="number" name="pl_rade_min" step="any" value="0.1"> max <input type="number" name="pl_rade_max" step="any" value="30"></label>
+          <label>Planet mass (M⊕) min <input type="number" name="pl_masse_min" step="any" value=""> max <input type="number" name="pl_masse_max" step="any" value=""></label>
+          <label>Orbital period (days) min <input type="number" name="pl_orbper_min" step="any" value=""> max <input type="number" name="pl_orbper_max" step="any" value=""></label>
+        </fieldset>
+        <button type="submit">Search</button>
+      </form>
+      <p id="search-status"></p>
+      <ul id="search-results"></ul>
+    </div>
+  </div>
 
   <script src="dist/query.js"></script>
-  <script src="dist/app.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script type="module" src="dist/simulation/page.js"></script>
 </body>
 </html>

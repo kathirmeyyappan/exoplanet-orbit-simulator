@@ -3,6 +3,7 @@
  * Scene only reads this object and calls update() / getPlanetPosition().
  */
 
+/** 1 unit = 1 AU everywhere. */
 export interface SimulationState {
   readonly plName: string;
   readonly hostName: string;
@@ -11,15 +12,21 @@ export interface SimulationState {
   readonly hzInnerAu: number;
   readonly hzOuterAu: number;
   readonly inHabitableZone: boolean;
+  /** 'in' = in HZ (green), 'too-close' = inside inner (red), 'too-far' = outside outer (blue) */
+  readonly habitableZoneStatus: "in" | "too-close" | "too-far";
+  readonly orbitalPeriodDays: number;
   readonly starRadius: number;
   readonly orbitRadius: number;
   readonly planetRadius: number;
   readonly hzInner: number;
   readonly hzOuter: number;
   readonly orbitEccentricity: number;
+  readonly eccentricityKnown: boolean;
   getOrbitPoints(): Array<{ x: number; y: number; z: number }>;
   update(deltaTime: number): void;
   getPlanetPosition(): { x: number; y: number; z: number };
+  getElapsedDays(): number;
+  getElapsedYears(): number;
 }
 
 function get(row: Record<string, unknown>, key: string): unknown {
@@ -38,7 +45,10 @@ function habitableZoneAU(stLum: number | null): { inner: number; outer: number }
   return { inner: 0.75 * Math.sqrt(L), outer: 1.77 * Math.sqrt(L) };
 }
 
-const SCALE = 1.5;
+/** Fixed scale: 1 unit = 1 AU. Star/planet radii exaggerated for visibility. */
+const SUN_RADIUS_AU = 0.005;
+const MIN_STAR_RADIUS = 0.012;
+const MIN_PLANET_RADIUS = 0.008;
 
 export function createSimulationFromRow(row: Record<string, unknown>): SimulationState {
   const plName = (get(row, "pl_name") as string) || "Planet";
@@ -46,19 +56,25 @@ export function createSimulationFromRow(row: Record<string, unknown>): Simulatio
   const stRad = num(row, "st_rad", 1);
   const stLum = num(row, "st_lum", 0);
   const plOrbsmax = num(row, "pl_orbsmax", 1);
+  const plOrbeccenRaw = get(row, "pl_orbeccen");
+  const eccentricityKnown = plOrbeccenRaw != null && Number.isFinite(Number(plOrbeccenRaw));
   const plOrbeccen = num(row, "pl_orbeccen", 0);
   const plRade = num(row, "pl_rade", 1);
+  const plOrbper = num(row, "pl_orbper", 365);
 
   const hzAu = habitableZoneAU(stLum);
   const inHz = plOrbsmax >= hzAu.inner && plOrbsmax <= hzAu.outer;
+  const habitableZoneStatus: "in" | "too-close" | "too-far" =
+    inHz ? "in" : plOrbsmax < hzAu.inner ? "too-close" : "too-far";
 
   const orbitEccentricity = Math.min(0.99, plOrbeccen);
-  const orbitRadius = Math.min(3, plOrbsmax * SCALE);
-  const starRadius = Math.max(0.05, Math.min(0.3, stRad * 0.08));
-  const planetRadius = Math.max(0.01, Math.min(0.15, (plRade ?? 1) * 0.02));
-  const hzInner = Math.min(4, hzAu.inner * SCALE);
-  const hzOuter = Math.min(4, hzAu.outer * SCALE);
+  const orbitRadius = plOrbsmax;
+  const hzInner = hzAu.inner;
+  const hzOuter = hzAu.outer;
+  const starRadius = Math.max(MIN_STAR_RADIUS, stRad * SUN_RADIUS_AU);
+  const planetRadius = Math.max(MIN_PLANET_RADIUS, (plRade ?? 1) * 0.00004);
 
+  const orbitalPeriodDays = plOrbper > 0 ? plOrbper : 365;
   let time = 0;
 
   function radiusAtAngle(t: number): number {
@@ -88,12 +104,15 @@ export function createSimulationFromRow(row: Record<string, unknown>): Simulatio
     hzInnerAu: hzAu.inner,
     hzOuterAu: hzAu.outer,
     inHabitableZone: inHz,
+    habitableZoneStatus,
+    orbitalPeriodDays,
     starRadius,
     orbitRadius,
     planetRadius,
     hzInner,
     hzOuter,
     orbitEccentricity,
+    eccentricityKnown,
 
     getOrbitPoints(): Array<{ x: number; y: number; z: number }> {
       return orbitPointsCache;
@@ -105,6 +124,14 @@ export function createSimulationFromRow(row: Record<string, unknown>): Simulatio
 
     getPlanetPosition(): { x: number; y: number; z: number } {
       return positionAtTime(time);
+    },
+
+    getElapsedDays(): number {
+      return (time / (2 * Math.PI)) * orbitalPeriodDays;
+    },
+
+    getElapsedYears(): number {
+      return this.getElapsedDays() / 365.25;
     }
   };
 }

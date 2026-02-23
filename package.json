@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "tsc",
+    "clean": "rm -rf dist",
     "serve": "npx serve ."
   },
   "devDependencies": {
