@@ -49,7 +49,11 @@ const resultCache = new Map<string, { ok: true; data: TapRow[] }>();
 
 function networkErrorMsg(raw: string): string {
   if (raw === "Failed to fetch" || raw === "Network error" || /fetch|CORS|TypeError/i.test(raw)) {
-    return "Could not reach the NASA Exoplanet Archive. This often happens when the page is opened as a file (file://) due to browser security (CORS). Run the app from a local server instead: in the project folder run \"npx serve .\", then open http://localhost:3000 in your browser.";
+    const isFile = typeof location !== "undefined" && location.protocol === "file:";
+    if (isFile) {
+      return "Could not reach the NASA Exoplanet Archive. Browsers block requests from file://. Run the app from a local server instead: in the project folder run \"npx serve .\", then open http://localhost:3000 in your browser.";
+    }
+    return "Could not reach the NASA Exoplanet Archive. The request may have been blocked (CORS) or the service is temporarily unavailable. Please try again in a moment.";
   }
   return raw;
 }
@@ -61,7 +65,8 @@ async function fetchPlanets(input: QueryInput): Promise<FetchResult> {
   if (cached) return cached;
 
   const url = `${TAP_BASE}?query=${encodeURIComponent(query)}&format=json`;
-  const useProxy = typeof location !== "undefined" && /^https?:\/\/localhost(\b|:)/i.test(location.origin);
+  // Use CORS proxy for all origins: NASA TAP doesn't allow cross-origin from arbitrary sites (e.g. GitHub Pages).
+  const target = CORS_PROXY + encodeURIComponent(url);
 
   function parseResponse(res: Response): Promise<FetchResult> {
     if (!res.ok) {
@@ -78,8 +83,6 @@ async function fetchPlanets(input: QueryInput): Promise<FetchResult> {
     });
   }
 
-  const target = useProxy ? CORS_PROXY + encodeURIComponent(url) : url;
-
   async function doFetch(noCache: boolean): Promise<FetchResult> {
     const opts: RequestInit = noCache ? { cache: "no-store" } : {};
     const res = await fetch(target, opts);
@@ -93,17 +96,7 @@ async function fetchPlanets(input: QueryInput): Promise<FetchResult> {
   try {
     return await doFetch(false);
   } catch (e: unknown) {
-    const err = e as { message?: string; name?: string };
-    if (!useProxy && (err.message === "Failed to fetch" || err.name === "TypeError")) {
-      try {
-        const res2 = await fetch(CORS_PROXY + encodeURIComponent(url));
-        return await parseResponse(res2);
-      } catch (e2: unknown) {
-        const raw = (e2 as Error).message || "Network error";
-        return { ok: false, error: networkErrorMsg(raw) };
-      }
-    }
-    const raw = (err as Error).message || "Network error";
+    const raw = (e as Error).message || "Network error";
     return { ok: false, error: networkErrorMsg(raw) };
   }
 }
@@ -118,8 +111,7 @@ function fetchPlanetsByNames(names: string[]): Promise<FetchResult> {
   const inList = escaped.join(", ");
   const query = `SELECT ${SELECT_COLS} FROM ${FROM} WHERE default_flag = 1 AND pl_name IN (${inList})`;
   const url = `${TAP_BASE}?query=${encodeURIComponent(query)}&format=json`;
-  const useProxy = typeof location !== "undefined" && /^https?:\/\/localhost(\b|:)/i.test(location.origin);
-  const target = useProxy ? CORS_PROXY + encodeURIComponent(url) : url;
+  const target = CORS_PROXY + encodeURIComponent(url);
 
   function parseResponse(res: Response): Promise<FetchResult> {
     if (!res.ok) {
