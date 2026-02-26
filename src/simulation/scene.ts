@@ -43,11 +43,16 @@ export function runScene(canvas: HTMLCanvasElement, state: SimulationState, opti
   const camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight, 0.01, 1000);
   const target = new THREE.Vector3(0, 0, 0);
   const systemScale = Math.max(state.hzOuter, state.orbitRadius, 0.08);
-  const minRadius = systemScale * 0.5;
-  const maxRadius = systemScale * 4;
-  let cameraRadius = systemScale * 1.5;
+  const orbitExtent = state.orbitRadius * (1 + Math.min(0.99, state.orbitEccentricity));
+  const fovHalfRad = (50 * Math.PI) / 180 / 2;
+  const cameraPhiDefault = 1.15;
+  const tiltFactor = Math.sin(cameraPhiDefault);
+  const defaultCameraRadius = (orbitExtent * 1.05 * tiltFactor) / Math.tan(fovHalfRad);
+  const minRadius = systemScale * 0.2;
+  const maxRadius = Math.max(systemScale * 4, defaultCameraRadius * 2);
+  let cameraRadius = defaultCameraRadius;
   let cameraTheta = Math.PI / 4;
-  let cameraPhi = Math.PI / 4;
+  let cameraPhi = cameraPhiDefault;
   let isDragging = false;
   let lastY = 0;
 
@@ -96,8 +101,11 @@ export function runScene(canvas: HTMLCanvasElement, state: SimulationState, opti
   const star = new THREE.Mesh(starGeo, starMat);
   scene.add(star);
 
-  // 3 concentric disks: red (center → inner), green (inner → outer), blue (outer → outer+)
-  const outerBlue = state.hzOuter + (state.hzOuter - state.hzInner);
+  // 3 concentric disks: red (center → inner HZ), green (HZ), blue (outer)
+  const outerBlue = Math.max(
+    state.hzOuter + (state.hzOuter - state.hzInner),
+    orbitExtent * 1.05
+  );
   const rotX = -Math.PI / 2;
   const segments = 64;
   const redGeo = new THREE.CircleGeometry(state.hzInner, segments);
